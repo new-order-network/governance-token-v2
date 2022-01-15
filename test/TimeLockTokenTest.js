@@ -1,3 +1,4 @@
+const helper = require("../helpers/utils.js");
 const truffleAssert = require("truffle-assertions");
 const TimeLockToken = artifacts.require("TimeLockToken");
 
@@ -73,17 +74,22 @@ contract("TimeLockToken", (accounts) => {
     );
   });
 
-  it(`should be able to timelock ${tokensToLock} tokens`, async () => {
+  it(`should be able to timelock ${tokensToLock} tokens and emit NewTokenLock event`, async () => {
     let instance = await TimeLockToken.deployed();
     const latestBlock = await web3.eth.getBlock("latest");
 
-    await instance.newTimeLock(
+    const result = await instance.newTimeLock(
       tokensToLock,
       latestBlock.timestamp + dayInSeconds,
       dayInSeconds,
       { from: accounts[0] }
     );
 
+    truffleAssert.eventEmitted(result, "NewTokenLock");
+  });
+
+  it(`should have ${tokensToLock} as the locked amount`, async () => {
+    let instance = await TimeLockToken.deployed();
     const balanceLocked = await instance.balanceLocked(accounts[0]);
 
     assert.equal(balanceLocked, tokensToLock);
@@ -133,5 +139,12 @@ contract("TimeLockToken", (accounts) => {
         from: accounts[0],
       })
     );
+  });
+
+  it(`should be able to unlock ${tokensToLock} balance tokens at certain after disbursement period`, async () => {
+    let instance = await TimeLockToken.deployed();
+    await helper.advanceTimeAndBlock(dayInSeconds * 2);
+    const balanceUnlocked = await instance.balanceUnlocked(accounts[0]);
+    assert.equal(balanceUnlocked, tokensToLock);
   });
 });
