@@ -3,7 +3,8 @@ pragma solidity ^0.8.3;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
-@title TimelockToken contract - allows a token unlock over time
+@title TimelockToken contract - implements an ERC20 governance token with built-in locking capabilities to implement a vesting schedule with a vesting cliff.
+
 Based on 
 https://github.com/gnosis/disbursement-contracts/blob/master/contracts/Disbursement.sol
  +
@@ -26,7 +27,7 @@ interface ILOCKABLETOKEN{
      * @dev Emitted when the token lockup is initialized  
      * `tokenHolder` is the address the lock pertains to
      *  `amountLocked` is the amount of tokens locked 
-     *  `startTime` unix time when tokens will start vesting
+     *  `vestTime` unix time when tokens will start vesting
      *  `cliffTime` unix time before which locked tokens are not transferrable
      *  `period` is the time interval over which tokens vest
      */
@@ -62,9 +63,9 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
     /* 
      @dev function to lock tokens, only if there are no tokens currently locked
      @param timelockedTokens_ number of tokens to lock up
-     @param `startTime` unix time when tokens will start vesting
-     @param `cliffTime` unix time before which locked tokens are not transferrable
-     @param `period` is the time interval over which tokens vest
+     @param `vestTime_` unix time when tokens will start vesting
+     @param `cliffTime_` unix time before which locked tokens are not transferrable
+     @param `disbursementPeriod_` is the time interval over which tokens vest
      */
     function newTimeLock(uint256 timelockedTokens_, uint256 vestTime_, uint256 cliffTime_, uint256 disbursementPeriod_)
         public
@@ -129,7 +130,9 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         }
         return balanceOf(who) - timelockedTokens[who] + maxTokens;
     }
-
+    
+    /// @dev Calculates the amount of locked tokens for address `who`
+    /// @return Number of locked tokens 
     function balanceLocked(address who) 
         public 
         virtual 
@@ -150,7 +153,8 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         return timelockedTokens[who] - maxTokens;
 
     }
-
+    /// @dev Calculates the maximum amount of transferrable tokens for address `who`. Alias for calcMaxTransferrable for backwards compatibility.
+    /// @return Number of transferrable tokens 
     function balanceUnlocked(address who) public view virtual override returns (uint256 amount){
         return calcMaxTransferrable(who);
     }
