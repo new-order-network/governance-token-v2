@@ -23,25 +23,23 @@ interface ILOCKABLETOKEN{
     function balanceLocked(address who) external view returns (uint256 amount);
 
     /**
-     * @dev Emitted when the token lock is initialized  
+     * @dev Emitted when the token lockup is initialized  
      * `tokenHolder` is the address the lock pertains to
      *  `amountLocked` is the amount of tokens locked 
-     *  `startTime` unix time when tokens will start vesting (i.e. cliff)
-     *  `unlockPeriod` is the time interval at which tokens become unlockedPerPeriod
+     *  `startTime` unix time when tokens will start vesting
+     *  `cliffTime` unix time before which locked tokens are not transferrable
+     *  `period` is the time interval over which tokens vest
      */
-    event  NewTokenLock(address tokenHolder, uint256 amountLocked, uint256 startTime, uint256 unlockPeriod);
+    event  NewTokenLock(address tokenHolder, uint256 amountLocked, uint256 vestTime, uint256 cliffTime, uint256 period);
 
 } 
 
-//TODO: define interface for querying timelocked tokens
-//make compatible with old token
-//add events
+
 contract TimeLockToken is ERC20, ILOCKABLETOKEN{
 
      /*
      *  Events
      */
-    //TODO: Events
 
     /*
      *  Storage
@@ -49,8 +47,10 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
     
     //token locking state variables
     mapping(address => uint256) public disbursementPeriod;
-    mapping(address => uint256) public startDate;
+    mapping(address => uint256) public vestTime;
+    mapping(address => uint256) public cliffTime;
     mapping(address => uint256) public timelockedTokens;
+
     /*
      *  Public functions
      */
@@ -59,23 +59,30 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         _mint(deployer_, amount_);
     }
 
-    /// @dev function to lock tokens, only if there are no tokens currently locked
-    /// @param timelockedTokens_ number of tokens to lock up
-    /// @param startDate_ unix time when tokens will start vesting (i.e. cliff)
-    /// @param disbursementPeriod_ Vesting period in seconds
-    function newTimeLock(uint256 timelockedTokens_, uint256 startDate_, uint256 disbursementPeriod_)
+    /* 
+     @dev function to lock tokens, only if there are no tokens currently locked
+     @param timelockedTokens_ number of tokens to lock up
+     @param `startTime` unix time when tokens will start vesting
+     @param `cliffTime` unix time before which locked tokens are not transferrable
+     @param `period` is the time interval over which tokens vest
+     */
+    function newTimeLock(uint256 timelockedTokens_, uint256 vestTime_, uint256 cliffTime_, uint256 disbursementPeriod_)
         public
     {
         require(timelockedTokens_ > 0, "Cannot timelock 0 tokens");
         require(timelockedTokens_ <= balanceOf(msg.sender), "Cannot timelock more tokens than current balance");
         require(balanceLocked(msg.sender) == 0, "Cannot timelock additional tokens while tokens already locked");
         require(disbursementPeriod_ > 0, "Cannot have disbursement period of 0");
-        require(startDate_ > block.timestamp, "Start Date must be in the future");
+        require(vestTime_ > block.timestamp, "vesting start must be in the future");
+        require(cliffTime_ >= vestTime_, "cliff must be at same time as vesting starts (or later)");
+
         disbursementPeriod[msg.sender] = disbursementPeriod_;
-        startDate[msg.sender] = startDate_;
+        vestTime[msg.sender] = vestTime_;
+        cliffTime[msg.sender] = cliffTime_;
         timelockedTokens[msg.sender] = timelockedTokens_;
-        emit NewTokenLock(msg.sender, timelockedTokens_, startDate_, disbursementPeriod_);
+        emit NewTokenLock(msg.sender, timelockedTokens_, vestTime_, cliffTime_, disbursementPeriod_);
     }
+
     /**
      * @dev Hook that is called before any transfer of tokens. This includes
      * minting and burning.
@@ -94,9 +101,9 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         address to,
         uint256 amount
     ) internal virtual override {
-        uint maxTokens = calcMaxTransferrable(msg.sender);
+        uint maxTokens = calcMaxTransferrable(from);
         if (from != address(0x0) && amount > maxTokens){
-          revert("Withdraw amount exceeds available unlocked tokens");
+          revert("amount exceeds available unlocked tokens");
         }
     }
 
@@ -112,10 +119,10 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
             return balanceOf(who);
         }
         uint256 maxTokens;
-        if( startDate[who] > block.timestamp){
+        if( vestTime[who] > block.timestamp || cliffTime[who] > block.timestamp){
             maxTokens = 0;
         } else {
-            maxTokens = timelockedTokens[who] * (block.timestamp - startDate[who]) / disbursementPeriod[who];
+            maxTokens = timelockedTokens[who] * (block.timestamp - vestTime[who]) / disbursementPeriod[who];
         }
         if (timelockedTokens[who] < maxTokens){
           return balanceOf(who);
@@ -133,10 +140,10 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         if(timelockedTokens[who] == 0){
             return 0;
         }
-        if(startDate[who] > block.timestamp){
+        if( vestTime[who] > block.timestamp || cliffTime[who] > block.timestamp){
             return timelockedTokens[who];
         }
-        uint256 maxTokens = timelockedTokens[who] * (block.timestamp - startDate[who]) / disbursementPeriod[who];
+        uint256 maxTokens = timelockedTokens[who] * (block.timestamp - vestTime[who]) / disbursementPeriod[who];
         if(maxTokens >= timelockedTokens[who]){
             return 0;
         }
