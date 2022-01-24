@@ -128,7 +128,8 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         if (timelockedTokens[who] < maxTokens){
           return balanceOf(who);
         }
-        return balanceOf(who) - timelockedTokens[who] + maxTokens;
+        int256 finalValue = int256(balanceOf(who)) - int256(timelockedTokens[who]) + int256(maxTokens);
+        return uint256(finalValue);
     }
     
     /* 

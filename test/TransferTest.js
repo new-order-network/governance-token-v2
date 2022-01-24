@@ -3,6 +3,7 @@ const truffleAssert = require("truffle-assertions");
 const TimeLockToken = artifacts.require("TimeLockToken");
 
 const yearInSeconds = 31536000;
+const timeAllowance = 1000; // Sometimes tests throws an error because vestTime should be in the future
 const tokensToLock = 1000;
 
 contract("TimeLockToken", (accounts) => {
@@ -25,7 +26,7 @@ contract("TimeLockToken", (accounts) => {
 
     const result = await instance.newTimeLock(
       tokensToLock,
-      latestBlock.timestamp + 1,
+      latestBlock.timestamp + timeAllowance,
       latestBlock.timestamp + yearInSeconds / 2,
       yearInSeconds,
       { from: accounts[0] }
@@ -37,7 +38,7 @@ contract("TimeLockToken", (accounts) => {
   it(`should be able to have ${
     tokensToLock / 2
   } unlocked balance after cliff time`, async () => {
-    await helper.advanceTimeAndBlock(yearInSeconds / 2 + 1);
+    await helper.advanceTimeAndBlock(yearInSeconds / 2 + timeAllowance);
     const balanceUnlocked = await instance.balanceUnlocked(accounts[0]);
 
     assert.equal(balanceUnlocked.toNumber(), tokensToLock / 2);
