@@ -128,11 +128,11 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         if (timelockedTokens[who] < maxTokens){
           return balanceOf(who);
         }
-        return balanceOf(who) - timelockedTokens[who] + maxTokens;
+        return balanceOf(who) + maxTokens - timelockedTokens[who];
     }
     
     /// @dev Calculates the amount of locked tokens for address `who`
-    /// @return Number of locked tokens 
+    /// @return amount of locked tokens 
     function balanceLocked(address who) 
         public 
         virtual 
@@ -154,7 +154,7 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
 
     }
     /// @dev Calculates the maximum amount of transferrable tokens for address `who`. Alias for calcMaxTransferrable for backwards compatibility.
-    /// @return Number of transferrable tokens 
+    /// @return amount of transferrable tokens 
     function balanceUnlocked(address who) public view virtual override returns (uint256 amount){
         return calcMaxTransferrable(who);
     }
