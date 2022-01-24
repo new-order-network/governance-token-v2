@@ -6,15 +6,28 @@ const dayInSeconds = 86400;
 const tokensToLock = 2000;
 
 contract("TimeLockToken", (accounts) => {
+  let instance;
+
+  beforeEach(async () => {
+    instance = await TimeLockToken.deployed();
+  });
+
+  it("should be able to transfer 10000 to accounts[0]", async () => {
+    await truffleAssert.passes(
+      instance.transfer(accounts[0], 10000, {
+        from: accounts[9],
+      })
+    );
+  });
+
   it("should balance of accounts[0] be equal to unlocked balance", async () => {
-    let instance = await TimeLockToken.deployed();
     const balance = await instance.balanceOf(accounts[0]);
     const balanceUnlocked = await instance.balanceUnlocked(accounts[0]);
+
     assert.equal(balance.toNumber(), balanceUnlocked.toNumber());
   });
 
   it("should not be able to timelock 0 tokens", async () => {
-    let instance = await TimeLockToken.deployed();
     const latestBlock = await web3.eth.getBlock("latest");
 
     await truffleAssert.fails(
@@ -30,7 +43,6 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it("should not be able to timelock more tokens than balance", async () => {
-    let instance = await TimeLockToken.deployed();
     const latestBlock = await web3.eth.getBlock("latest");
     const balance = await instance.balanceOf(accounts[0]);
 
@@ -47,7 +59,6 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it("should not be able to timelock if disbursement period is 0", async () => {
-    let instance = await TimeLockToken.deployed();
     const latestBlock = await web3.eth.getBlock("latest");
 
     await truffleAssert.fails(
@@ -63,7 +74,6 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it("should not be able to timelock if the start date is less than current timestamp", async () => {
-    let instance = await TimeLockToken.deployed();
     const latestBlock = await web3.eth.getBlock("latest");
 
     await truffleAssert.fails(
@@ -79,7 +89,6 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it("should not be able to timelock if the cliff timestamp is lower than the vesting timestamp", async () => {
-    let instance = await TimeLockToken.deployed();
     const latestBlock = await web3.eth.getBlock("latest");
 
     await truffleAssert.fails(
@@ -95,7 +104,6 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it(`should be able to timelock ${tokensToLock} tokens and emit NewTokenLock event`, async () => {
-    let instance = await TimeLockToken.deployed();
     const latestBlock = await web3.eth.getBlock("latest");
 
     const result = await instance.newTimeLock(
@@ -110,14 +118,12 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it(`should have ${tokensToLock} as the locked amount`, async () => {
-    let instance = await TimeLockToken.deployed();
     const balanceLocked = await instance.balanceLocked(accounts[0]);
 
     assert.equal(balanceLocked, tokensToLock);
   });
 
   it("should not be able to timelock more tokens if there is currently locked balance", async () => {
-    let instance = await TimeLockToken.deployed();
     const latestBlock = await web3.eth.getBlock("latest");
 
     await truffleAssert.fails(
@@ -133,7 +139,6 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it(`unlocked balance should be ${tokensToLock} tokens less of total balance`, async () => {
-    let instance = await TimeLockToken.deployed();
     const balanceUnlocked = await instance.balanceUnlocked(accounts[0]);
     const balance = await instance.balanceOf(accounts[0]);
 
@@ -141,7 +146,6 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it("should not be able to transfer tokens greater than unlocked balance", async () => {
-    let instance = await TimeLockToken.deployed();
     const balanceUnlocked = await instance.balanceUnlocked(accounts[0]);
 
     await truffleAssert.fails(
@@ -153,7 +157,6 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it("should be able to transfer unlocked balance", async () => {
-    let instance = await TimeLockToken.deployed();
     const balanceUnlocked = await instance.balanceUnlocked(accounts[0]);
 
     await truffleAssert.passes(
@@ -164,7 +167,6 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it("should not be able to transfer locked tokens if the timestamp is not over the cliff time", async () => {
-    let instance = await TimeLockToken.deployed();
     const balanceLocked = await instance.balanceLocked(accounts[0]);
     await truffleAssert.fails(
       instance.transfer(accounts[1], balanceLocked, {
@@ -175,14 +177,22 @@ contract("TimeLockToken", (accounts) => {
   });
 
   it(`should be able to transfer ${
-    tokensToLock / 2
+    tokensToLock / 4
   } locked tokens after the timestamp passes the cliff time`, async () => {
-    let instance = await TimeLockToken.deployed();
-    const balanceLocked = await instance.balanceLocked(accounts[0]);
     await helper.advanceTimeAndBlock(dayInSeconds * 3);
 
     await truffleAssert.passes(
-      instance.transfer(accounts[1], balanceLocked / 2, {
+      instance.transfer(accounts[1], tokensToLock / 4, {
+        from: accounts[0],
+      })
+    );
+  });
+
+  it(`should be able to transfer another ${
+    tokensToLock / 4
+  } locked tokens to another account`, async () => {
+    await truffleAssert.passes(
+      instance.transfer(accounts[2], tokensToLock / 4, {
         from: accounts[0],
       })
     );
@@ -191,7 +201,6 @@ contract("TimeLockToken", (accounts) => {
   it(`should be able to unlock ${
     tokensToLock / 2
   } of the balance after disbursement period`, async () => {
-    let instance = await TimeLockToken.deployed();
     await helper.advanceTimeAndBlock(dayInSeconds * 7);
     const balanceUnlocked = await instance.balanceUnlocked(accounts[0]);
 
