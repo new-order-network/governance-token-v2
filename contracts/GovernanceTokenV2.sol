@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-pragma solidity ^0.8.3;
+pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /**
@@ -68,7 +68,7 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
      @param `disbursementPeriod_` is the time interval over which tokens vest
      */
     function newTimeLock(uint256 timelockedTokens_, uint256 vestTime_, uint256 cliffTime_, uint256 disbursementPeriod_)
-        public
+        external
     {
         require(timelockedTokens_ > 0, "Cannot timelock 0 tokens");
         require(timelockedTokens_ <= balanceOf(msg.sender), "Cannot timelock more tokens than current balance");
@@ -155,7 +155,12 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
     }
     /// @dev Calculates the maximum amount of transferrable tokens for address `who`. Alias for calcMaxTransferrable for backwards compatibility.
     /// @return amount of transferrable tokens 
-    function balanceUnlocked(address who) public view virtual override returns (uint256 amount){
+    function balanceUnlocked(address who) 
+        external 
+        view 
+        virtual 
+        override 
+        returns (uint256 amount){
         return calcMaxTransferrable(who);
     }
 
