@@ -1,19 +1,19 @@
 const helper = require("../helpers/utils.js");
 const truffleAssert = require("truffle-assertions");
-const TimeLockToken = artifacts.require("TimeLockToken");
+const GovernanceTokenPausable = artifacts.require("GovernanceTokenPausable");
 
 const yearInSeconds = 31536000;
 const timeAllowance = 1000; // Sometimes tests throws an error because vestTime should be in the future
 const tokensToLock = 1000;
 
-contract("TimeLockToken", (accounts) => {
+contract("GovernanceTokenPausable", (accounts) => {
   let instance;
 
   beforeEach(async () => {
-    instance = await TimeLockToken.deployed();
+    instance = await GovernanceTokenPausable.deployed();
   });
 
-  it(`should be able to transfer ${tokensToLock} to accounts[0]`, async () => {
+  it(`should be able to transfer ${tokensToLock} to accounts[0] when not paused`, async () => {
     await truffleAssert.passes(
       instance.transfer(accounts[0], tokensToLock, {
         from: accounts[9],
@@ -21,7 +21,38 @@ contract("TimeLockToken", (accounts) => {
     );
   });
 
+  it(`should not be able to transfer ${tokensToLock} to accounts[0] when paused`, async () => {
+    await instance.pause({ from: accounts[0] });
+    await truffleAssert.fails(
+      instance.transfer(accounts[0], tokensToLock, { from: accounts[9] }),
+      truffleAssert.ErrorType.REVERT,
+      "Pausable: paused"
+    );
+  });
+
+  it(`should NOT be able to pause if not owner`, async () => {
+    await instance.unPause({ from: accounts[0] });
+    await truffleAssert.fails(
+      instance.pause({ from: accounts[9] }),
+      truffleAssert.ErrorType.REVERT,
+      "Ownable: caller is not the owner."
+    );
+  });
+
+  it(`should NOT be able to unPause if not owner`, async () => {
+    await instance.pause({ from: accounts[0] });
+    await truffleAssert.fails(
+      instance.unPause({ from: accounts[9] }),
+      truffleAssert.ErrorType.REVERT,
+      "Ownable: caller is not the owner."
+    );
+  });
+
+
+
   it(`should be able to timelock ${tokensToLock} tokens and emit NewTokenLock event`, async () => {
+    await instance.unPause({ from: accounts[0] });
+
     const latestBlock = await web3.eth.getBlock("latest");
 
     const result = await instance.newTimeLock(
