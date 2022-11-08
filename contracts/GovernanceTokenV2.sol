@@ -153,6 +153,7 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         return timelockedTokens[who] - maxTokens;
 
     }
+
     /// @dev Calculates the maximum amount of transferrable tokens for address `who`. Alias for calcMaxTransferrable for backwards compatibility.
     /// @return amount of transferrable tokens 
     function balanceUnlocked(address who) 
