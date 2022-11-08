@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
 @title TimelockToken contract - implements an ERC20 governance token with built-in locking capabilities to implement a vesting schedule with a vesting cliff.
@@ -36,7 +38,7 @@ interface ILOCKABLETOKEN{
 } 
 
 
-contract TimeLockToken is ERC20, ILOCKABLETOKEN{
+contract GovernanceTokenPausable is ERC20, ILOCKABLETOKEN, Ownable, Pausable{
 
      /*
      *  Events
@@ -90,18 +92,19 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
      *
      * Calling conditions:
      *
+     * - when the contract is not paused
      * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
      * will be transferred to `to`.
      * - when `from` is zero, `amount` tokens will be minted for `to`.
      * - when `to` is zero, `amount` of ``from``'s tokens will be burned.
      * - `from` and `to` are never both zero.
-     *
      */
     function _beforeTokenTransfer(
         address from,
         address to,
         uint256 amount
-    ) internal virtual override {
+    ) internal virtual override whenNotPaused
+    {
         uint maxTokens = calcMaxTransferrable(from);
         if (from != address(0x0) && amount > maxTokens){
           revert("amount exceeds available unlocked tokens");
@@ -153,7 +156,6 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         return timelockedTokens[who] - maxTokens;
 
     }
-
     /// @dev Calculates the maximum amount of transferrable tokens for address `who`. Alias for calcMaxTransferrable for backwards compatibility.
     /// @return amount of transferrable tokens 
     function balanceUnlocked(address who) 
@@ -163,6 +165,20 @@ contract TimeLockToken is ERC20, ILOCKABLETOKEN{
         override 
         returns (uint256 amount){
         return calcMaxTransferrable(who);
+    }
+
+    function pause() 
+        external 
+        onlyOwner
+    {
+        _pause();
+    }
+
+    function unPause() 
+        external 
+        onlyOwner
+    {
+        _unpause();
     }
 
 }

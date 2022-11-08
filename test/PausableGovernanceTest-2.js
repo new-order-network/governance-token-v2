@@ -1,15 +1,15 @@
 const helper = require("../helpers/utils.js");
 const truffleAssert = require("truffle-assertions");
-const TimeLockToken = artifacts.require("TimeLockToken");
+const GovernanceTokenPausable = artifacts.require("GovernanceTokenPausable");
 
 const dayInSeconds = 86400;
 const tokensToLock = 2000;
 
-contract("TimeLockToken", (accounts) => {
+contract("GovernanceTokenPausable", (accounts) => {
   let instance;
 
   beforeEach(async () => {
-    instance = await TimeLockToken.deployed();
+    instance = await GovernanceTokenPausable.deployed();
   });
 
   it("should be able to transfer 10000 to accounts[0]", async () => {
